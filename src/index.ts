@@ -29,9 +29,19 @@ async function main() {
   const app = express();
 
   // CORS must run before helmet/routes so preflight always gets ACAO headers
-  const allowedOrigins = env.CORS_ORIGIN.split(",")
-    .map((o) => o.trim().replace(/\/$/, ""))
-    .filter(Boolean);
+  const allowedOrigins = Array.from(
+    new Set(
+      [
+        ...env.CORS_ORIGIN.split(","),
+        // Always allow the production Vercel frontend (even if Render env is stale)
+        "https://truck-dispatch-lake.vercel.app",
+        "http://localhost:3000",
+        "http://localhost:3001",
+      ]
+        .map((o) => o.trim().replace(/\/$/, ""))
+        .filter(Boolean)
+    )
+  );
 
   const corsOptions: cors.CorsOptions = {
     origin(origin, callback) {

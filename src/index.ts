@@ -28,43 +28,16 @@ async function main() {
 
   const app = express();
 
-  // CORS must run before helmet/routes so preflight always gets ACAO headers
-  const allowedOrigins = Array.from(
-    new Set(
-      [
-        ...env.CORS_ORIGIN.split(","),
-        // Always allow the production Vercel frontend (even if Render env is stale)
-        "https://truck-dispatch-lake.vercel.app",
-        "http://localhost:3000",
-        "http://localhost:3001",
-      ]
-        .map((o) => o.trim().replace(/\/$/, ""))
-        .filter(Boolean)
-    )
-  );
-
+  // Reflect any Origin (allows all frontends). Required instead of "*" when credentials: true.
   const corsOptions: cors.CorsOptions = {
-    origin(origin, callback) {
-      if (!origin) {
-        callback(null, true);
-        return;
-      }
-      const normalized = origin.replace(/\/$/, "");
-      if (allowedOrigins.includes(normalized)) {
-        callback(null, true);
-        return;
-      }
-      console.warn(`CORS blocked origin: ${origin}`);
-      // Never callback(Error) — Express turns that into 500 without CORS headers
-      callback(null, false);
-    },
+    origin: true,
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     optionsSuccessStatus: 204,
   };
 
-  console.log("CORS allowed origins:", allowedOrigins.join(", ") || "(none)");
+  console.log("CORS: allowing all origins (reflect request Origin)");
   app.use(cors(corsOptions));
   app.options(/.*/, cors(corsOptions));
 
@@ -77,7 +50,7 @@ async function main() {
     res.json({
       ok: true,
       service: "truck-dispatch-api",
-      corsOrigins: allowedOrigins,
+      cors: "reflect-all-origins",
     });
   });
 

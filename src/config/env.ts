@@ -1,15 +1,19 @@
 import dotenv from "dotenv";
 import { z } from "zod";
 
-dotenv.config();
+dotenv.config(); // local .env only — on Render, set vars in the dashboard (Environment)
 
 const envSchema = z.object({
   PORT: z.coerce.number().default(4000),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
-  MONGODB_URI: z.string().min(1),
-  JWT_SECRET: z.string().min(16),
+  MONGODB_URI: z.string().min(1, "Set MONGODB_URI in the environment"),
+  JWT_SECRET: z.string().min(16, "Set JWT_SECRET (min 16 chars) in the environment"),
   JWT_EXPIRES_IN: z.string().default("7d"),
-  CORS_ORIGIN: z.string().default("http://localhost:3000"),
+  CORS_ORIGIN: z
+    .string()
+    .default(
+      "http://localhost:3000,http://localhost:3001,https://truck-dispatch-lake.vercel.app"
+    ),
   COOKIE_SECURE: z
     .string()
     .optional()

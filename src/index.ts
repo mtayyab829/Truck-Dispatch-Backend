@@ -28,26 +28,47 @@ async function main() {
 
   const app = express();
 
+  // CORS must run before helmet/routes so preflight always gets ACAO headers
+  const allowedOrigins = env.CORS_ORIGIN.split(",")
+    .map((o) => o.trim().replace(/\/$/, ""))
+    .filter(Boolean);
+
+  const corsOptions: cors.CorsOptions = {
+    origin(origin, callback) {
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+      const normalized = origin.replace(/\/$/, "");
+      if (allowedOrigins.includes(normalized)) {
+        callback(null, true);
+        return;
+      }
+      console.warn(`CORS blocked origin: ${origin}`);
+      // Never callback(Error) — Express turns that into 500 without CORS headers
+      callback(null, false);
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    optionsSuccessStatus: 204,
+  };
+
+  console.log("CORS allowed origins:", allowedOrigins.join(", ") || "(none)");
+  app.use(cors(corsOptions));
+  app.options(/.*/, cors(corsOptions));
+
   app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
-  const allowedOrigins = env.CORS_ORIGIN.split(",").map((o) => o.trim());
-  app.use(
-    cors({
-      origin(origin, callback) {
-        if (!origin || allowedOrigins.includes(origin)) {
-          callback(null, true);
-          return;
-        }
-        callback(new Error(`CORS blocked for origin: ${origin}`));
-      },
-      credentials: true,
-    })
-  );
   app.use(morgan(env.NODE_ENV === "production" ? "combined" : "dev"));
   app.use(express.json({ limit: "2mb" }));
   app.use(cookieParser());
 
   app.get("/health", (_req, res) => {
-    res.json({ ok: true, service: "truck-dispatch-api" });
+    res.json({
+      ok: true,
+      service: "truck-dispatch-api",
+      corsOrigins: allowedOrigins,
+    });
   });
 
   app.use("/api/auth", authRouter);

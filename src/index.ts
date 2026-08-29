@@ -22,6 +22,7 @@ import { reportsRouter } from "./routes/reports.js";
 import { notificationsRouter } from "./routes/notifications.js";
 import { searchRouter } from "./routes/search.js";
 import { errorHandler } from "./middleware/errorHandler.js";
+import { getEmailProvider } from "./lib/mail.js";
 
 async function main() {
   await connectDb();
@@ -78,6 +79,7 @@ async function main() {
       ok: true,
       service: "truck-dispatch-api",
       corsOrigins: allowedOrigins,
+      emailProvider: getEmailProvider(),
     });
   });
 

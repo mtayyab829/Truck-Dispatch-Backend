@@ -26,6 +26,19 @@ const envSchema = z.object({
   GMAIL_APP_PASSWORD: z
     .union([z.string().min(8), z.literal("")])
     .optional()
+    .transform((v) => {
+      if (!v) return undefined;
+      return v.replace(/\s/g, "").replace(/^["']|["']$/g, "");
+    }),
+  /** Resend API key — HTTPS email that works on Render free tier (https://resend.com) */
+  RESEND_API_KEY: z
+    .union([z.string().min(8), z.literal("")])
+    .optional()
+    .transform((v) => (v ? v : undefined)),
+  /** e.g. TruckOps <you@gmail.com> — must be verified in Resend */
+  RESEND_FROM: z
+    .union([z.string().min(3), z.literal("")])
+    .optional()
     .transform((v) => (v ? v : undefined)),
   CLOUDINARY_CLOUD_NAME: z
     .union([z.string().min(1), z.literal("")])

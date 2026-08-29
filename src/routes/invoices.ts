@@ -433,7 +433,7 @@ invoicesRouter.post("/:id/send", async (req, res, next) => {
 
     if (!isEmailConfigured()) {
       throw new AppError(
-        "Gmail is not configured. Add GMAIL_USER and GMAIL_APP_PASSWORD to the backend .env file.",
+        "Email is not configured. On Render, add RESEND_API_KEY (free at resend.com). Locally, set GMAIL_USER and GMAIL_APP_PASSWORD.",
         503
       );
     }
@@ -496,7 +496,7 @@ invoicesRouter.post("/:id/send", async (req, res, next) => {
         ).toFixed(2)}</strong></p>
         <p style="text-align:right;color:#64748b;">Balance due: $${balance.toFixed(2)}</p>
         ${noteBlock}
-        <p style="margin-top:28px;font-size:12px;color:#94a3b8;">Sent from TruckOps via Gmail.</p>
+        <p style="margin-top:28px;font-size:12px;color:#94a3b8;">Sent from TruckOps.</p>
       </div>
     `;
 

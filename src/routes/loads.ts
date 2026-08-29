@@ -18,15 +18,6 @@ import { loadScopeFilter, nextLoadNumber } from "../lib/loadHelpers.js";
 import { canTransition, nextStatuses, FREIGHT_PAYMENT_STATUSES } from "../lib/loadStatus.js";
 import { uploadDocumentToCloudinary } from "../lib/cloudinary.js";
 import { extractEmail, suggestedInvoiceRecipientEmail } from "../lib/emailHelpers.js";
-import {
-  notifyCompanyAdmin,
-  buildLoadCreatedNotify,
-  buildDocumentUploadedNotify,
-  buildPaymentRecordedNotify,
-  buildLoadAssignedNotify,
-  buildLoadStatusNotify,
-  buildFreightInvoiceNotify,
-} from "../lib/adminNotify.js";
 import { sendMail, isEmailConfigured } from "../lib/mail.js";
 import {
   serializeDocument,
@@ -109,28 +100,6 @@ const upload = multer({
 
 export const loadsRouter = Router();
 loadsRouter.use(requireAuth);
-
-const LOAD_STATUS_LABELS: Record<string, string> = {
-  CREATED: "Created",
-  ASSIGNED: "Assigned",
-  AT_PICKUP: "At pickup",
-  PICKED_UP: "Picked up",
-  IN_TRANSIT: "In transit",
-  AT_DELIVERY: "At delivery",
-  DELIVERED: "Delivered",
-  POD_RECEIVED: "POD received",
-  PAYMENT_FOLLOW_UP: "Payment follow-up",
-  PAYMENT_COMPLETED: "Payment completed",
-  CANCELLED: "Cancelled",
-};
-
-function loadStatusLabel(status: string): string {
-  return LOAD_STATUS_LABELS[status] ?? status.replace(/_/g, " ");
-}
-
-function notifyActor(req: { session?: { userId: string; name: string } }) {
-  return { userId: req.session!.userId, name: req.session!.name };
-}
 
 function assertObjectId(id: string, label = "id"): void {
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -430,18 +399,6 @@ loadsRouter.post("/", async (req, res, next) => {
       details: { loadNumber, status, commissionAmount },
     });
 
-    await notifyCompanyAdmin(
-      scope,
-      notifyActor(req),
-      buildLoadCreatedNotify({
-        actorName: req.session!.name,
-        loadNumber,
-        loadId: String(load._id),
-        route: `${input.pickupCity} → ${input.deliveryCity}`,
-        rate: input.rate,
-      })
-    );
-
     res.status(201).json({ load: serializeLoad(load.toObject()) });
   } catch (err) {
     next(err);
@@ -568,18 +525,6 @@ loadsRouter.post("/:id/assign", async (req, res, next) => {
       details: { driverId: input.driverId, truckId: input.truckId },
     });
 
-    const assignedDriver = await Driver.findById(input.driverId).lean();
-    await notifyCompanyAdmin(
-      scope,
-      notifyActor(req),
-      buildLoadAssignedNotify({
-        actorName: req.session!.name,
-        loadNumber: load.loadNumber,
-        loadId: String(load._id),
-        driverName: assignedDriver?.name ?? "driver",
-      })
-    );
-
     res.json({
       load: serializeLoad(updated),
       assignment: serializeLoadAssignment(assignment.toObject()),
@@ -680,17 +625,6 @@ loadsRouter.post("/:id/status", async (req, res, next) => {
       details: { from: load.loadStatus, to: input.status, note: input.note },
     });
 
-    await notifyCompanyAdmin(
-      scope,
-      notifyActor(req),
-      buildLoadStatusNotify({
-        actorName: req.session!.name,
-        loadNumber: load.loadNumber,
-        loadId: String(load._id),
-        statusLabel: loadStatusLabel(input.status),
-      })
-    );
-
     res.json({
       load: serializeLoad(updated),
       statusHistory: serializeStatusHistory(history.toObject()),
@@ -790,19 +724,6 @@ loadsRouter.post("/:id/freight-payment", async (req, res, next) => {
         autoCompleted: settled.settled,
       },
     });
-
-    await notifyCompanyAdmin(
-      scope,
-      notifyActor(req),
-      buildPaymentRecordedNotify({
-        actorName: req.session!.name,
-        loadNumber: load.loadNumber,
-        loadId: String(load._id),
-        paymentKind: "freight",
-        amount: input.amount,
-        method: input.method,
-      })
-    );
 
     res.status(201).json({
       payment: serializeTransaction(tx.toObject()),
@@ -984,18 +905,6 @@ loadsRouter.post("/:id/freight-invoice", async (req, res, next) => {
       details: { loadId: String(load._id), amount: load.rate, billTo },
     });
 
-    await notifyCompanyAdmin(
-      scope,
-      notifyActor(req),
-      buildFreightInvoiceNotify({
-        actorName: req.session!.name,
-        loadNumber: load.loadNumber,
-        loadId: String(load._id),
-        invoiceNumber: invoice.invoiceNumber,
-        invoiceId: String(invoice._id),
-      })
-    );
-
     res.status(201).json({ invoice: serializeInvoice(invoice.toObject()) });
   } catch (err) {
     next(err);
@@ -1080,18 +989,6 @@ loadsRouter.post(
           cloudinaryPublicId: uploaded.publicId,
         },
       });
-
-      await notifyCompanyAdmin(
-        scope,
-        notifyActor(req),
-        buildDocumentUploadedNotify({
-          actorName: req.session!.name,
-          loadNumber: load.loadNumber,
-          loadId: String(load._id),
-          docType: meta.docType,
-          fileName: doc.fileName,
-        })
-      );
 
       res.status(201).json({ document: serializeDocument(doc.toObject()) });
     } catch (err) {

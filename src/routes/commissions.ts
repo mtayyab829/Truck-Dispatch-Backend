@@ -7,10 +7,6 @@ import { loadScopeFilter } from "../lib/loadHelpers.js";
 import { isCommissionEarned, roundMoney } from "../lib/commission.js";
 import { logActivity } from "../lib/activity.js";
 import {
-  notifyCompanyAdmin,
-  buildPaymentRecordedNotify,
-} from "../lib/adminNotify.js";
-import {
   serializeDriver,
   serializeLoad,
   serializeTransaction,
@@ -298,19 +294,6 @@ commissionsRouter.post("/payments", async (req, res, next) => {
         totalReceived,
       },
     });
-
-    await notifyCompanyAdmin(
-      scope,
-      { userId: scope.userId, name: req.session!.name },
-      buildPaymentRecordedNotify({
-        actorName: req.session!.name,
-        loadNumber: load.loadNumber,
-        loadId: String(load._id),
-        paymentKind: "commission",
-        amount: input.amount,
-        method: input.method,
-      })
-    );
 
     res.status(201).json({
       transaction: serializeTransaction(tx.toObject()),

@@ -9,10 +9,6 @@ import { isCommissionEarned, roundMoney } from "../lib/commission.js";
 import { refreshRateSettled } from "../lib/freight.js";
 import { logActivity } from "../lib/activity.js";
 import {
-  notifyCompanyAdmin,
-  buildPaymentRecordedNotify,
-} from "../lib/adminNotify.js";
-import {
   serializeDriver,
   serializeLoad,
   serializeTransaction,
@@ -128,7 +124,6 @@ paymentsRouter.post("/", async (req, res, next) => {
 
     let driverId = input.driverId;
     let loadId = input.loadId;
-    let linkedLoad: { _id: mongoose.Types.ObjectId; loadNumber: string } | null = null;
 
     if (loadId) {
       if (!mongoose.Types.ObjectId.isValid(loadId)) {
@@ -139,7 +134,6 @@ paymentsRouter.post("/", async (req, res, next) => {
         _id: loadId,
       }).lean();
       if (!load) throw new AppError("Load not found", 404);
-      linkedLoad = { _id: load._id, loadNumber: load.loadNumber };
 
       if (
         input.type === TransactionType.COMMISSION_RECEIVED &&
@@ -272,28 +266,6 @@ paymentsRouter.post("/", async (req, res, next) => {
         invoiceId: input.invoiceId,
       },
     });
-
-    if (
-      linkedLoad &&
-      (input.type === TransactionType.FREIGHT_RECEIVED ||
-        input.type === TransactionType.COMMISSION_RECEIVED)
-    ) {
-      await notifyCompanyAdmin(
-        scope,
-        { userId: scope.userId, name: req.session!.name },
-        buildPaymentRecordedNotify({
-          actorName: req.session!.name,
-          loadNumber: linkedLoad.loadNumber,
-          loadId: String(linkedLoad._id),
-          paymentKind:
-            input.type === TransactionType.FREIGHT_RECEIVED
-              ? "freight"
-              : "commission",
-          amount: input.amount,
-          method: input.method,
-        })
-      );
-    }
 
     res.status(201).json({ payment: serializeTransaction(tx.toObject()) });
   } catch (err) {

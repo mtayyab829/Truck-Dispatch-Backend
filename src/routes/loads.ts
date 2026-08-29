@@ -17,6 +17,8 @@ import { freightReceivedTotal, refreshRateSettled } from "../lib/freight.js";
 import { loadScopeFilter, nextLoadNumber } from "../lib/loadHelpers.js";
 import { canTransition, nextStatuses, FREIGHT_PAYMENT_STATUSES } from "../lib/loadStatus.js";
 import { uploadDocumentToCloudinary } from "../lib/cloudinary.js";
+import { extractEmail, suggestedInvoiceRecipientEmail } from "../lib/emailHelpers.js";
+import { sendMail, isEmailConfigured } from "../lib/mail.js";
 import {
   serializeDocument,
   serializeDriver,
@@ -763,7 +765,28 @@ loadsRouter.post("/:id/payment-reminder", async (req, res, next) => {
     }
 
     const billTo = load.source?.trim() || "customer/broker";
-    const message = `Payment reminder for load ${load.loadNumber}: ${outstanding} outstanding (bill to ${billTo}).`;
+    const reminderEmail =
+      (typeof req.body?.email === "string" && req.body.email.trim()) ||
+      extractEmail(load.source) ||
+      extractEmail(load.notes);
+
+    const message = `Payment reminder for load ${load.loadNumber}: $${outstanding.toFixed(2)} outstanding (bill to ${billTo}).`;
+
+    if (reminderEmail && isEmailConfigured()) {
+      await sendMail({
+        to: reminderEmail,
+        subject: `Payment reminder · Load ${load.loadNumber}`,
+        text: [
+          message,
+          "",
+          `Load: ${load.loadNumber}`,
+          `Route: ${load.pickupCity} → ${load.deliveryCity}`,
+          `Rate: $${Number(load.rate).toFixed(2)}`,
+          `Outstanding: $${outstanding.toFixed(2)}`,
+        ].join("\n"),
+        html: `<p>${message}</p><p><strong>Load:</strong> ${load.loadNumber}<br/><strong>Outstanding:</strong> $${outstanding.toFixed(2)}</p>`,
+      });
+    }
 
     await Notification.create({
       accountId: scope.accountId,
@@ -779,10 +802,17 @@ loadsRouter.post("/:id/payment-reminder", async (req, res, next) => {
       entityType: "Load",
       entityId: String(load._id),
       action: "FREIGHT_PAYMENT_REMINDER",
-      details: { outstanding, billTo },
+      details: { outstanding, billTo, emailedTo: reminderEmail ?? null },
     });
 
-    res.status(201).json({ ok: true, message, outstanding });
+    res.status(201).json({
+      ok: true,
+      message: reminderEmail && isEmailConfigured()
+        ? `${message} Email sent to ${reminderEmail}.`
+        : `${message} Saved as in-app notification.`,
+      outstanding,
+      emailedTo: reminderEmail && isEmailConfigured() ? reminderEmail : null,
+    });
   } catch (err) {
     next(err);
   }
@@ -836,12 +866,21 @@ loadsRouter.post("/:id/freight-invoice", async (req, res, next) => {
       load.source?.trim() ||
       `Load ${load.loadNumber} customer`;
 
+    const billToEmail =
+      input.billToEmail ||
+      suggestedInvoiceRecipientEmail({
+        billTo,
+        notes: load.notes,
+        driverEmail: null,
+      });
+
     const invoice = await Invoice.create({
       accountId: scope.accountId,
       invoiceNumber: await nextFreightInvoiceNumber(String(scope.accountId)),
       kind: InvoiceKind.FREIGHT,
       driverId: null,
       billTo,
+      billToEmail: billToEmail ?? null,
       createdByUserId: scope.userId,
       issueDate,
       dueDate,

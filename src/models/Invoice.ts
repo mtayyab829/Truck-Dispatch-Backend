@@ -25,6 +25,8 @@ const invoiceSchema = new Schema(
     },
     /** Broker / customer name for freight invoices */
     billTo: { type: String, default: null, trim: true },
+    /** Broker / customer email for freight invoice delivery */
+    billToEmail: { type: String, default: null, trim: true, lowercase: true },
     createdByUserId: {
       type: Schema.Types.ObjectId,
       ref: "User",

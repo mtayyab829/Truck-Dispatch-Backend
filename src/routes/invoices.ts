@@ -35,6 +35,7 @@ import {
   updateInvoiceStatusSchema,
 } from "../validators/finance.js";
 import { sendMail, isEmailConfigured } from "../lib/mail.js";
+import { suggestedInvoiceRecipientEmail } from "../lib/emailHelpers.js";
 
 export const invoicesRouter = Router();
 invoicesRouter.use(requireAuth);
@@ -259,7 +260,9 @@ invoicesRouter.get("/:id", async (req, res, next) => {
     const [items, paymentLinks, driver] = await Promise.all([
       InvoiceItem.find({ invoiceId: invoice._id }).lean(),
       InvoicePayment.find({ invoiceId: invoice._id }).lean(),
-      Driver.findOne({ _id: invoice.driverId, ...tenantFilter(scope) }).lean(),
+      invoice.driverId
+        ? Driver.findOne({ _id: invoice.driverId, ...tenantFilter(scope) }).lean()
+        : Promise.resolve(null),
     ]);
 
     const loadIds = items.map((i) => i.loadId);
@@ -282,6 +285,13 @@ invoicesRouter.get("/:id", async (req, res, next) => {
         aging: agingBucket(invoice.dueDate),
       },
       driver: driver ? serializeDriver(driver) : null,
+      suggestedRecipientEmail: suggestedInvoiceRecipientEmail({
+        billToEmail: invoice.billToEmail,
+        billTo: invoice.billTo,
+        notes: invoice.notes,
+        driverEmail: driver?.email ?? null,
+        loadSources: loads.map((l) => l.source),
+      }),
       items: items.map((i) => ({
         ...serializeInvoiceItem(i),
         load: loadMap.get(String(i.loadId)) ?? null,
@@ -510,6 +520,13 @@ invoicesRouter.post("/:id/send", async (req, res, next) => {
       text,
       html,
     });
+
+    if (invoice.kind === InvoiceKind.FREIGHT && !invoice.billToEmail) {
+      await Invoice.updateOne(
+        { _id: invoice._id },
+        { $set: { billToEmail: input.email.toLowerCase() } }
+      );
+    }
 
     const status = deriveInvoiceStatus({
       status: InvoiceStatus.SENT,

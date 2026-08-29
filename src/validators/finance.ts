@@ -119,5 +119,9 @@ export const recordFreightPaymentSchema = z.object({
 
 export const createFreightInvoiceSchema = z.object({
   billTo: optionalString,
+  billToEmail: z
+    .union([z.string().trim().email("Enter a valid email"), z.literal("")])
+    .optional()
+    .transform((v) => (v ? v.toLowerCase() : undefined)),
   notes: optionalString,
 });

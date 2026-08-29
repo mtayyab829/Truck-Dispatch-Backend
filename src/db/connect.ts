@@ -1,12 +1,11 @@
-import { MongoMemoryServer } from "mongodb-memory-server";
 import mongoose from "mongoose";
 import { env } from "../config/env.js";
 
-let memoryServer: MongoMemoryServer | null = null;
+let memoryServer: { getUri: (db?: string) => string; stop(): Promise<boolean> } | null =
+  null;
 
 /**
- * Connects to MONGODB_URI. If that fails in development, falls back to
- * an in-memory MongoDB so M0 can be verified without Atlas/local install.
+ * Connects to MONGODB_URI. In development only, falls back to in-memory MongoDB.
  */
 export async function connectDb(): Promise<typeof mongoose> {
   mongoose.set("strictQuery", true);
@@ -21,6 +20,7 @@ export async function connectDb(): Promise<typeof mongoose> {
     console.warn(
       "Could not connect to MONGODB_URI — starting in-memory MongoDB for development."
     );
+    const { MongoMemoryServer } = await import("mongodb-memory-server");
     memoryServer = await MongoMemoryServer.create();
     const uri = memoryServer.getUri("truck_dispatch");
     await mongoose.connect(uri);

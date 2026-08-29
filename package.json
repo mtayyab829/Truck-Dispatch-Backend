@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
+    "build:render": "npm install --include=dev && npm run build",
     "start": "node dist/index.js",
     "seed": "tsx src/seed.ts",
     "clear-demo": "tsx src/seed.ts",
@@ -27,6 +28,9 @@
     "multer": "^2.2.0",
     "nodemailer": "^9.0.5",
     "zod": "^4.4.3"
+  },
+  "engines": {
+    "node": ">=20"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

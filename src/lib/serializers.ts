@@ -169,6 +169,7 @@ export function serializeInvoice(doc: Record<string, unknown>) {
     kind: (doc.kind as string) ?? "COMMISSION",
     driverId: doc.driverId ? String(doc.driverId) : null,
     billTo: (doc.billTo as string | null) ?? null,
+    billToEmail: (doc.billToEmail as string | null) ?? null,
     createdByUserId: doc.createdByUserId ? String(doc.createdByUserId) : null,
     issueDate: iso(doc.issueDate as Date),
     dueDate: iso(doc.dueDate as Date),
